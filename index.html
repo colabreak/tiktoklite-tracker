@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,maximum-scale=1">
+<title>TikTok Lite 日次トラッカー</title>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#0f1115">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<style>
+:root{--g:10px;--bg:#0f1115;--card:#171a21;--ink:#e6e9ef;--mut:#9aa3b2;--red:#d33;--gry:#444;--bd:rgba(255,255,255,.12)}
+body{margin:0;background:var(--bg);color:var(--ink);font:13px/1.5 system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,'Noto Sans JP',sans-serif}
+.w{max-width:900px;margin:24px auto;padding:0 12px 56px}
+.hd{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between;margin:0 0 10px}
+.btn{appearance:none;border:0;background:#2a2f3a;color:var(--ink);padding:8px 10px;border-radius:8px;cursor:pointer;font-size:13px}
+.sts{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 8px}
+.st{background:var(--card);padding:6px 8px;border-radius:8px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(66px,1fr));gap:var(--g);margin-top:8px}
+.chip{min-width:58px;padding:12px 8px;border-radius:10px;text-align:center;font-weight:800;font-size:16px;border:1px solid var(--bd);user-select:none;cursor:pointer}
+.c0{background:var(--red);color:#fff}.c1{background:var(--gry);color:#fff}.c2{display:none}
+.list{background:var(--card);border-radius:10px;padding:10px;margin-top:10px}
+.help{color:var(--mut)}
+.notes{background:var(--card);border-radius:10px;padding:10px;margin-top:10px;border:1px solid var(--bd)}
+.nh{margin:0 0 6px;font-size:13px}
+.ng{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}
+.ni{display:flex;gap:6px;align-items:center}
+.nl{min-width:32px;background:#2a2f3a;border:1px solid var(--bd);border-radius:6px;padding:4px 6px;font-weight:700;text-align:center}
+.ni input{flex:1;min-width:0;background:#12151b;color:var(--ink);border:1px solid var(--bd);border-radius:6px;padding:6px 8px}
+</style>
+</head>
+<body>
+<div class="w" id="app">
+  <div class="hd">
+    <h3 style="margin:0">TikTok Lite 日次トラッカー</h3>
+    <div style="display:flex;gap:6px;flex-wrap:wrap">
+      <button class="btn" id="add">+ 端末を追加</button>
+      <button class="btn" id="del">- 端末を削除</button>
+      <button class="btn" id="undo">取り消し</button>
+      <button class="btn" id="reset">初期化</button>
+    </div>
+  </div>
+
+  <div class="sts">
+    <div class="st">実施済み: <b id="done">0</b> 回</div>
+    <div class="st">残り回数: <b id="rem">0</b> 回</div>
+    <div class="st">残り台数: <b id="remd">0</b> 台</div>
+    <div class="st">完了率: <b id="rate">0%</b></div>
+    <div class="st">日付: <b id="day"></b></div>
+  </div>
+
+  <div id="grid" class="grid" aria-live="polite"></div>
+
+  <div class="list">
+    <div><b>残り端末:</b> <span id="left"></span></div>
+    <div class="help">0回=赤 -> 1回=グレー -> 2回=非表示。追加/削除で端末を編集できます。</div>
+  </div>
+
+  <div class="notes">
+    <h4 class="nh">端末メモ (1〜20のみ)</h4>
+    <div id="ng" class="ng"></div>
+  </div>
+</div>
+
+<script>
+(function(){
+  const DEF=[1,2,3,4,5,6,7,8,9,10,11,21,22,23];
+  const today=new Date().toISOString().slice(0,10);
+  const K_DEV='tkl:dev',K_ST='tkl:st:'+today,K_NOTE='tkl:note';
+  const $=id=>document.getElementById(id);
+  const E={g:$("grid"),left:$("left"),done:$("done"),rem:$("rem"),remd:$("remd"),rate:$("rate"),day:$("day"),
+           add:$("add"),del:$("del"),undo:$("undo"),reset:$("reset"),ng:$("ng")};
+  E.day.textContent=today;
+
+  function ldDev(){try{const r=localStorage.getItem(K_DEV);if(r){const a=JSON.parse(r);if(Array.isArray(a)&&a.length)return [...new Set(a)].map(Number).sort((x,y)=>x-y)}}catch(e){}return DEF.slice()}
+  function ldSt(dev){try{const r=localStorage.getItem(K_ST);if(r){const o=JSON.parse(r);dev.forEach(id=>{if(!(id in o))o[id]=0});return o}}catch(e){}const o={};dev.forEach(id=>o[id]=0);return o}
+  function ldNote(){try{const r=localStorage.getItem(K_NOTE);if(r){const o=JSON.parse(r);return o&&typeof o==='object'?o:{}}}catch(e){}return {}}
+  let dev=ldDev(), st=ldSt(dev), nt=ldNote(), hist=[];
+
+  function save(){try{
+    localStorage.setItem(K_DEV,JSON.stringify(dev));
+    localStorage.setItem(K_ST,JSON.stringify(st));
+    localStorage.setItem(K_NOTE,JSON.stringify(nt));
+  }catch(e){}}
+
+  function tok(id,c){return c>=2?null:String(id)}
+  function met(){
+    const total=dev.length*2,sum=Object.values(st).reduce((a,b)=>a+Math.min(b,2),0);
+    E.done.textContent=sum;E.rem.textContent=total-sum;E.remd.textContent=dev.filter(id=>(st[id]||0)<2).length;
+    E.rate.textContent=(sum*100/Math.max(1,total)).toFixed(1)+'%'
+  }
+  function draw(){
+    E.g.innerHTML=''; dev.forEach(id=>{const c=st[id]||0,t=tok(id,c);const d=document.createElement('div');
+      d.className='chip c'+c; d.textContent=t??''; d.onclick=()=>step(id,1); d.oncontextmenu=e=>e.preventDefault(); E.g.appendChild(d)});
+    const left=[];dev.forEach(id=>{const t=tok(id,st[id]||0);if(t)left.push(t)});E.left.textContent=left.join(', ');
+    E.ng.innerHTML=''; dev.forEach(id=>{if(id>20)return;const w=document.createElement('div');w.className='ni';
+      const lb=document.createElement('div');lb.className='nl';lb.textContent=String(id);
+      const inp=document.createElement('input');inp.type='text';inp.placeholder='メモ';inp.value=nt[id]||'';
+      let to=null; inp.oninput=()=>{const v=inp.value; if(to)clearTimeout(to); to=setTimeout(()=>{nt[id]=v; save()},300)};
+      w.appendChild(lb);w.appendChild(inp);E.ng.appendChild(w)});
+    met()
+  }
+  function step(id,dx){const p=st[id]||0,n=Math.max(0,Math.min(2,p+dx));if(p===n)return;st[id]=n;hist.push({k:'step',id,p});save();draw()}
+  E.add.onclick=()=>{const v=prompt('追加する端末番号 (半角数字)');if(v==null)return;const n=Number(String(v).trim());
+    if(!Number.isInteger(n)||n<=0){alert('正しい番号を入力してください');return}
+    if(dev.includes(n)){alert('その番号は既にあります');return}
+    dev.push(n);dev.sort((a,b)=>a-b);st[n]=0;hist.push({k:'add',id:n});save();draw()}
+  E.del.onclick=()=>{const v=prompt('削除する端末番号 (半角数字)');if(v==null)return;const n=Number(String(v).trim());
+    const i=dev.indexOf(n);if(i===-1){alert('その番号はリストにありません');return}
+    if(!confirm('端末 '+n+' を削除しますか?'))return;const pc=st[n]||0,pnote=nt[n]||'';dev.splice(i,1);delete st[n];delete nt[n];
+    hist.push({k:'del',id:n,i,pc,pnote});save();draw()}
+  E.undo.onclick=()=>{const h=hist.pop();if(!h)return;
+    if(h.k==='step'){st[h.id]=h.p}else if(h.k==='add'){const i=dev.indexOf(h.id);if(i>-1)dev.splice(i,1);delete st[h.id];delete nt[h.id]
+    }else if(h.k==='del'){dev.splice(h.i,0,h.id);st[h.id]=h.pc;if(h.pnote)nt[h.id]=h.pnote}
+    save();draw()}
+  E.reset.onclick=()=>{if(!confirm('本日分を初期化しますか?'))return;dev.forEach(id=>st[id]=0);hist=[];save();draw()}
+  draw();
+})();
+</script>
+
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js').catch(console.error);
+  });
+}
+</script>
+</body>
+</html>
