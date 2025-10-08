@@ -19,7 +19,7 @@ body{margin:0;background:var(--bg);color:var(--ink);font:13px/1.5 system-ui,-app
 .st{background:var(--card);padding:6px 8px;border-radius:8px}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(66px,1fr));gap:var(--g);margin-top:8px}
 .chip{min-width:58px;padding:12px 8px;border-radius:10px;text-align:center;font-weight:800;font-size:16px;border:1px solid var(--bd);user-select:none;cursor:pointer}
-.c0{background:var(--red);color:#fff}.c1{background:var(--gry);color:#fff}.c2{display:none}
+.c0{background:var(--red);color:#fff}.c1{background:var(--gry);color:#fff}.c2{opacity:.35; pointer-events:none; filter:grayscale(100%);}
 .list{background:var(--card);border-radius:10px;padding:10px;margin-top:10px}
 .help{color:var(--mut)}
 .notes{background:var(--card);border-radius:10px;padding:10px;margin-top:10px;border:1px solid var(--bd)}
@@ -92,7 +92,7 @@ body{margin:0;background:var(--bg);color:var(--ink);font:13px/1.5 system-ui,-app
   }
   function draw(){
     E.g.innerHTML=''; dev.forEach(id=>{const c=st[id]||0,t=tok(id,c);const d=document.createElement('div');
-      d.className='chip c'+c; d.textContent=t??''; d.onclick=()=>step(id,1); d.oncontextmenu=e=>e.preventDefault(); E.g.appendChild(d)});
+      d.className='chip c'+c; d.textContent=String(id); d.onclick=()=>step(id,1); d.oncontextmenu=e=>e.preventDefault(); E.g.appendChild(d)});
     const left=[];dev.forEach(id=>{const t=tok(id,st[id]||0);if(t)left.push(t)});E.left.textContent=left.join(', ');
     E.ng.innerHTML=''; dev.forEach(id=>{if(id>20)return;const w=document.createElement('div');w.className='ni';
       const lb=document.createElement('div');lb.className='nl';lb.textContent=String(id);
